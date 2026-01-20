@@ -144,9 +144,11 @@ const applyGlossary = (text: string, options: TranslateOptions) => {
       const highlightedDefinition = options.highlight ? markText(definition) : definition;
 
       if (options.keepTerms) {
-        return `${match} (${highlightedDefinition})`;
+        // Keep the term as-is (no parenthetical annotation).
+        return match;
       }
 
+      // Replace the term with human-language definition.
       return highlightedDefinition;
     });
   });
@@ -200,21 +202,22 @@ const applyTwoLayerExplanation = (sentences: string[], enabled: boolean) => {
   }
 
   const sentence = sentences[0] ?? "";
-  const verbSplits: Array<{ pattern: RegExp; prefix: string }> = [
-    { pattern: /\s+causes\s+/i, prefix: "It causes " },
-    { pattern: /\s+improves\s+/i, prefix: "It improves " },
-    { pattern: /\s+secures\s+/i, prefix: "It secures " },
-    { pattern: /\s+uses\s+/i, prefix: "It uses " }
+
+  const verbSplits: Array<{ pattern: RegExp; verb: string }> = [
+    { pattern: /\s+causes\s+/i, verb: "causing" },
+    { pattern: /\s+improves\s+/i, verb: "improving" },
+    { pattern: /\s+secures\s+/i, verb: "securing" },
+    { pattern: /\s+uses\s+/i, verb: "using" }
   ];
 
-  for (const { pattern, prefix } of verbSplits) {
+  for (const { pattern, verb } of verbSplits) {
     if (pattern.test(sentence)) {
       const [subject, detail] = sentence.split(pattern);
       if (subject && detail) {
         return {
           sentences: [
             subject.trim().replace(/[.!?]?$/, "."),
-            `${prefix}${detail.trim()}`
+            `It works by ${verb} ${detail.trim()}`
           ],
           usedTwoLayer: true
         };
@@ -228,7 +231,7 @@ const applyTwoLayerExplanation = (sentences: string[], enabled: boolean) => {
       return {
         sentences: [
           subject.trim().replace(/[.!?]?$/, "."),
-          `It comes with ${detail.trim()}`
+          `It works by using ${detail.trim()}`
         ],
         usedTwoLayer: true
       };
@@ -239,7 +242,10 @@ const applyTwoLayerExplanation = (sentences: string[], enabled: boolean) => {
   if (pieces.length >= 2) {
     const trimmed = pieces.map((piece) => piece.trim()).filter(Boolean);
     if (trimmed.length >= 2) {
-      const twoLayer = [`${trimmed[0].replace(/[.!?]?$/, ".")}`, trimmed[1]];
+      const twoLayer = [
+        `${trimmed[0].replace(/[.!?]?$/, ".")}`,
+        `It works by ${trimmed[1]}`
+      ];
       return { sentences: twoLayer, usedTwoLayer: true };
     }
   }
@@ -247,7 +253,7 @@ const applyTwoLayerExplanation = (sentences: string[], enabled: boolean) => {
   return {
     sentences: [
       sentence.replace(/[.!?]?$/, "."),
-      "It works by breaking the technical parts into smaller steps."
+      "It works by combining the technical parts into a system."
     ],
     usedTwoLayer: true
   };
@@ -334,6 +340,9 @@ const simplifyText = (text: string, level: ReadingLevel) => {
 
 const formatPlain = (sentences: string[]) => sentences.join(" ");
 
+const stripHighlightTokens = (text: string) =>
+  text.replace(/\[\[H\]\]|\[\[\/H\]\]/g, "");
+
 const formatForX = (sentences: string[]) => {
   const thoughtLines = sentences.flatMap((sentence) => {
     const pieces = sentence
@@ -391,11 +400,16 @@ export const renderHighlightedText = (text: string, highlight: boolean) => {
   const escaped = escapeHtml(text);
 
   if (!highlight) {
-    return escaped.replace(/\n/g, "<br />");
+    return escaped
+      .replace(/\[\[H\]\]|\[\[\/H\]\]/g, "")
+      .replace(/\n/g, "<br />");
   }
 
   return escaped
-    .replace(/\[\[H\]\](.*?)\[\[\/H\]\]/g, '<mark class="bg-emerald-300/30 text-emerald-200">$1</mark>')
+    .replace(
+      /\[\[H\]\](.*?)\[\[\/H\]\]/g,
+      '<mark class="bg-emerald-300/30 text-emerald-200">$1</mark>'
+    )
     .replace(/\n/g, "<br />");
 };
 
@@ -405,21 +419,37 @@ export const translateText = (text: string, options: TranslateOptions): Translat
   const needsGuardrail = ambiguousTerms.some((term) =>
     new RegExp(`\\b${escapeRegex(term)}\\b`, "i").test(normalized)
   );
-  const withGlossary = applyGlossary(normalized, options);
-  const withPatterns = applyPatterns(withGlossary);
-  const sentences = simplifyText(withPatterns, options.readingLevel);
-  const { sentences: layeredSentences, usedTwoLayer } = applyTwoLayerExplanation(
-    sentences,
+
+  // 1) Clean base (no highlighting, keep key terms). Used for X-ready.
+  const baseGlossary = applyGlossary(normalized, {
+    keepTerms: true,
+    highlight: false,
+    readingLevel: options.readingLevel
+  });
+  const baseText = applyPatterns(baseGlossary);
+  const baseSentences = simplifyText(baseText, options.readingLevel);
+  const { sentences: layeredBase } = applyTwoLayerExplanation(baseSentences, conceptCount >= 2);
+  const { sentences: guardedBase } = applyGuardrailPrefix(layeredBase, needsGuardrail);
+  const xReady = formatForX(guardedBase.map((s) => stripHighlightTokens(s)));
+
+  // 2) Plain/Newbie (replace terms with human definitions; allow highlighting)
+  const plainGlossary = applyGlossary(normalized, {
+    keepTerms: false,
+    highlight: options.highlight,
+    readingLevel: options.readingLevel
+  });
+  const plainText = applyPatterns(plainGlossary);
+  const plainSentences = simplifyText(plainText, options.readingLevel);
+  const { sentences: layeredPlain, usedTwoLayer } = applyTwoLayerExplanation(
+    plainSentences,
     conceptCount >= 2
   );
-
-  const { sentences: guardedSentences, usedGuardrail } = applyGuardrailPrefix(
-    layeredSentences,
+  const { sentences: guardedPlain, usedGuardrail } = applyGuardrailPrefix(
+    layeredPlain,
     needsGuardrail
   );
-  const plain = formatPlain(guardedSentences);
-  const xReady = formatForX(guardedSentences);
-  const newbie = [plain, ...buildNewbieExtras(plain)].join("\n\n");
+  const plain = formatPlain(guardedPlain);
+  const newbie = [plain, ...buildNewbieExtras(stripHighlightTokens(plain))].join("\n\n");
 
   return { plain, xReady, newbie, meta: { usedTwoLayer, usedGuardrail } };
 };
