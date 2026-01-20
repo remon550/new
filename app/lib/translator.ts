@@ -153,6 +153,7 @@ if (options.keepTerms) {
 // Replace the term with human-language definition.
 return highlightedDefinition;
 
+
       return highlightedDefinition;
     });
   });
