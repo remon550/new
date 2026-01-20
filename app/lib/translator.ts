@@ -6,12 +6,6 @@ export type TranslateOptions = {
   readingLevel: ReadingLevel;
 };
 
-type GlossaryOptions = {
-  keepTerms: boolean;
-  highlight: boolean;
-  annotate: boolean;
-};
-
 export type TranslationMeta = {
   usedTwoLayer: boolean;
   usedGuardrail: boolean;
@@ -139,7 +133,8 @@ const normalizeText = (text: string) =>
 
 const markText = (text: string) => `[[H]]${text}[[/H]]`;
 
-const applyGlossary = (text: string, options: GlossaryOptions) => {
+const applyGlossary = (text: string, options: TranslateOptions) => {
+
   let output = text;
   const terms = Object.keys(glossary).sort((a, b) => b.length - a.length);
 
@@ -150,11 +145,13 @@ const applyGlossary = (text: string, options: GlossaryOptions) => {
       const highlightedDefinition = options.highlight ? markText(definition) : definition;
 
       if (options.keepTerms) {
-        if (options.annotate) {
-          return `${match} (${highlightedDefinition})`;
-        }
-        return match;
-      }
+if (options.keepTerms) {
+  // Keep the term as-is (no parenthetical annotation).
+  return match;
+}
+
+// Replace the term with human-language definition.
+return highlightedDefinition;
 
       return highlightedDefinition;
     });
@@ -209,6 +206,7 @@ const applyTwoLayerExplanation = (sentences: string[], enabled: boolean) => {
   }
 
   const sentence = sentences[0] ?? "";
+
   const verbSplits: Array<{ pattern: RegExp; verb: string }> = [
     { pattern: /\s+causes\s+/i, verb: "causing" },
     { pattern: /\s+improves\s+/i, verb: "improving" },
@@ -406,11 +404,18 @@ export const renderHighlightedText = (text: string, highlight: boolean) => {
   const escaped = escapeHtml(text);
 
   if (!highlight) {
-    return escaped.replace(/\[\[H\]\]|\[\[\/H\]\]/g, "").replace(/\n/g, "<br />");
-  }
+return escaped
+  .replace(/\[\[H\]\]|\[\[\/H\]\]/g, "")
+  .replace(/\n/g, "<br />");
+}
 
-  return escaped
-    .replace(/\[\[H\]\](.*?)\[\[\/H\]\]/g, '<mark class="bg-emerald-300/30 text-emerald-200">$1</mark>')
+return escaped
+  .replace(
+    /\[\[H\]\](.*?)\[\[\/H\]\]/g,
+    '<mark class="bg-emerald-300/30 text-emerald-200">$1</mark>'
+  )
+  .replace(/\n/g, "<br />");
+
     .replace(/\n/g, "<br />");
 };
 
@@ -420,28 +425,26 @@ export const translateText = (text: string, options: TranslateOptions): Translat
   const needsGuardrail = ambiguousTerms.some((term) =>
     new RegExp(`\\b${escapeRegex(term)}\\b`, "i").test(normalized)
   );
-  const baseGlossary = applyGlossary(normalized, {
-    keepTerms: options.keepTerms,
-    highlight: false,
-    annotate: false
-  });
-  const baseText = applyPatterns(baseGlossary);
-  const baseSentences = simplifyText(baseText, options.readingLevel);
-  const { sentences: layeredBase } = applyTwoLayerExplanation(
-    baseSentences,
-    conceptCount >= 2
-  );
-  const { sentences: guardedBase } = applyGuardrailPrefix(layeredBase, needsGuardrail);
-  const xReady = formatForX(
-    guardedBase.map((sentence) => stripHighlightTokens(sentence))
-  );
+// 1) Clean base (no highlighting, keep key terms). Used for X-ready.
+const baseGlossary = applyGlossary(normalized, {
+  keepTerms: true,
+  highlight: false,
+  readingLevel: options.readingLevel
+});
+const baseText = applyPatterns(baseGlossary);
+const baseSentences = simplifyText(baseText, options.readingLevel);
+const { sentences: layeredBase } = applyTwoLayerExplanation(baseSentences, conceptCount >= 2);
+const { sentences: guardedBase } = applyGuardrailPrefix(layeredBase, needsGuardrail);
+const xReady = formatForX(guardedBase.map((s) => stripHighlightTokens(s)));
 
-  const plainPatterns = applyPatterns(normalized);
-  const plainText = applyGlossary(plainPatterns, {
-    keepTerms: false,
-    highlight: options.highlight,
-    annotate: false
-  });
+// 2) Plain/Newbie: apply patterns FIRST, then glossary replacement (so rewrites win)
+const plainPatterns = applyPatterns(normalized);
+const plainText = applyGlossary(plainPatterns, {
+  keepTerms: false,
+  highlight: options.highlight,
+  readingLevel: options.readingLevel
+});
+
   const plainSentences = simplifyText(plainText, options.readingLevel);
   const { sentences: layeredPlain, usedTwoLayer } = applyTwoLayerExplanation(
     plainSentences,
@@ -452,7 +455,8 @@ export const translateText = (text: string, options: TranslateOptions): Translat
     needsGuardrail
   );
   const plain = formatPlain(guardedPlain);
-  const newbie = [plain, ...buildNewbieExtras(plain)].join("\n\n");
+const newbie = [plain, ...buildNewbieExtras(stripHighlightTokens(plain))].join("\n\n");
+
 
   return { plain, xReady, newbie, meta: { usedTwoLayer, usedGuardrail } };
 };
