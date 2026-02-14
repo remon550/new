@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Orbit helps creators generate post angles and define content pillars with a premium dark glass experience."
+    />
+    <title>Orbit – Creator Clarity + Angle Generator</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Fixed glass navigation for quick section access -->
+    <header class="top-nav glass-panel fade-up" id="top">
+      <div class="container nav-inner">
+        <a class="brand" href="#hero">Orbit</a>
+        <nav>
+          <a href="#angles">Generate Angles</a>
+          <a href="#pillars">Define Pillars</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="container">
+        <!-- Hero section with concise top spacing and clear actions -->
+        <section id="hero" class="hero fade-up">
+          <div class="hero-content">
+            <p class="eyebrow">Creator Toolkit</p>
+            <h1>Orbit – Creator Clarity + Angle Generator</h1>
+            <p class="subtitle">
+              Never freeze on a topic again. Generate angles &amp; pillars in minutes.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="#angles">Generate Angles</a>
+              <a class="btn btn-secondary" href="#pillars">Define Pillars</a>
+            </div>
+          </div>
+        </section>
+
+        <div class="section-divider fade-up" aria-hidden="true"></div>
+
+        <!-- Angle generator section -->
+        <section id="angles" class="section fade-up">
+          <div class="section-inner">
+            <div class="section-header">
+              <h2>Post Angle Generator</h2>
+              <p>Turn one topic into five clear, structured content angles.</p>
+            </div>
+
+            <form id="angleForm" class="glass-panel panel form-grid fade-up" novalidate>
+              <label>
+                Enter topic
+                <input
+                  id="topicInput"
+                  name="topic"
+                  type="text"
+                  placeholder="Ex: productivity for freelance designers"
+                  required
+                />
+              </label>
+
+              <label>
+                Audience niche (optional)
+                <select id="nicheInput" name="niche">
+                  <option value="">Select niche</option>
+                  <option>Students</option>
+                  <option>Freelancers</option>
+                  <option>Small business owners</option>
+                  <option>Startup founders</option>
+                  <option>Creators & coaches</option>
+                </select>
+              </label>
+
+              <button type="submit" class="btn btn-primary">Generate Angles</button>
+              <p id="angleError" class="error" role="alert" aria-live="polite"></p>
+            </form>
+
+            <div class="section-inner results-block">
+              <div id="angleResults" class="card-grid" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+
+        <div class="section-divider fade-up" aria-hidden="true"></div>
+
+        <!-- Content pillar questionnaire section -->
+        <section id="pillars" class="section fade-up">
+          <div class="section-inner">
+            <div class="section-header">
+              <h2>Content Pillar Builder</h2>
+              <p>Answer four prompts to define your weekly content foundation.</p>
+            </div>
+
+            <form id="pillarForm" class="glass-panel panel form-grid fade-up" novalidate>
+              <label>
+                1. What's your niche?
+                <input id="nicheQ" name="nicheQ" type="text" placeholder="Ex: UI/UX education" required />
+              </label>
+
+              <label>
+                2. 3 strengths you bring
+                <input
+                  id="strengthsQ"
+                  name="strengthsQ"
+                  type="text"
+                  placeholder="Ex: storytelling, systems thinking, practical examples"
+                  required
+                />
+              </label>
+
+              <label>
+                3. Audience goals
+                <input
+                  id="goalsQ"
+                  name="goalsQ"
+                  type="text"
+                  placeholder="Ex: land clients, improve portfolio confidence"
+                  required
+                />
+              </label>
+
+              <label>
+                4. Your unique perspective
+                <textarea
+                  id="perspectiveQ"
+                  name="perspectiveQ"
+                  rows="3"
+                  placeholder="Ex: I simplify complex workflows into daily actions"
+                  required
+                ></textarea>
+              </label>
+
+              <button type="submit" class="btn btn-secondary">Generate Pillars</button>
+              <p id="pillarError" class="error" role="alert" aria-live="polite"></p>
+            </form>
+
+            <div class="section-inner results-block">
+              <div id="pillarResults" class="card-grid" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="fade-up">
+      <div class="container">
+        <p>Built by @uiuxweb · X: @uiuxweb</p>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
